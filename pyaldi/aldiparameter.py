@@ -8,6 +8,9 @@ class ALDIParameter:
     def get_value(self):
         return self.value
 
+    def check_value(self, value=0):
+        return True
+
     def get_energy_grad(self, *args):
         raise NotImplementedError
 
