@@ -13,7 +13,7 @@ class AldiSampler():
 
     def __init__(self, step_size, number_of_iterations, number_of_particles, state_list, max_step_size=0.1,
                  adaptive_step_size=False, max_max_step_size=0, output_path='',
-                 save_steps=False):
+                 save_steps=False, verbose=False):
         """
         :param step_size: dt
         :param number_of_iterations: D
@@ -24,6 +24,7 @@ class AldiSampler():
         :param max_max_step_size: absolut limit of the step size
         :param output_path: path where to save the particles path
         :param save_steps: whether to save intermediate steps of the algorithm
+        :param: verbose: whether to print info or not
         """
 
         # In the adaptive step size we do not use an arbitrary step size,
@@ -44,6 +45,7 @@ class AldiSampler():
 
         self.output_path = output_path
         self.save_steps = save_steps
+        self.verbose = verbose
 
         try:
             self.number_of_parameters = state_list[0].get_value().shape[0]
@@ -152,6 +154,10 @@ class AldiSampler():
         accepted_steps = 0
 
         for t in range(self.number_of_iterations):
+
+            if self.verbose:
+                print(f'iteration number: {t}')
+
             if self.save_steps and not t % 50:
                 with open(self.output_path, 'wb') as f:
                     pickle.dump(
@@ -174,28 +180,32 @@ class AldiSampler():
                 checked_values = self.check_value_all_particles(new_value)
                 if not checked_values:
                     accepted_steps = 0
-                    print(f'iteration number: {t}')
-                    print('adapting the step size')
-                    print(f'old step size: {self.step_size}, old max step size: {self.max_step_size}')
+
+                    if self.verbose:
+                        print('adapting the step size')
+                        print(f'old step size: {self.step_size}, old max step size: {self.max_step_size}')
                     if self.adaptive_step_size:
                         self.max_step_size /= 2.
                     else:
                         self.step_size /= 2.
-                    print(f'new step size: {self.step_size}, new max step size: {self.max_step_size}')
+
+                    if self.verbose:
+                        print(f'new step size: {self.step_size}, new max step size: {self.max_step_size}')
                 else:
-                    # print(t)
                     accepted_steps += 1
                     self.step_sizes.append(self.step_size)
                     got_result = True
 
             if accepted_steps > 10 and self.adaptive_step_size:
-                print('increasing the step size')
-                print(f'old step size: {self.step_size}, old max step size: {self.max_step_size}')
+                if self.verbose:
+                    print('increasing the step size')
+                    print(f'old step size: {self.step_size}, old max step size: {self.max_step_size}')
                 if self.max_step_size < self.max_max_step_size / 2:
                     self.max_step_size *= 2.
                 elif self.step_size < self.max_step_size / 2:
                     self.step_size *= 2.
-                print(f'new step size: {self.step_size}, new max step size: {self.max_step_size}')
+                if self.verbose:
+                    print(f'new step size: {self.step_size}, new max step size: {self.max_step_size}')
 
             if np.isnan(new_value).any():
                 print('got NaN value - returning')
