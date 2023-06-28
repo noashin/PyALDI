@@ -153,49 +153,9 @@ class AldiSampler():
         # breakpoint()
         return step_part_one.T + step_part_two + random_step
 
-    def derivative_free_grad_step(self, *args):
-
-        prior_grads = np.array([state.get_prior_energy_grad() for state in self.state_list]).T
-        gs = np.array([state.get_g() for state in self.state_list]).T
-
-        innovations_terms = np.array([state.get_innovation_term(*args) for state in self.state_list]).T
-        if len(gs.shape) == 1:
-            mean_gs = gs.mean()
-            D = np.dot((self.particles_matrix - self.mean_particles[:, np.newaxis]),
-                       np.atleast_2d((gs - mean_gs)).T) / self.number_of_particles
-            res = - np.dot(D, np.atleast_2d(innovations_terms)) - np.dot(self.covariance_particles, prior_grads)
-        else:
-            mean_gs = gs.mean(axis=1)
-            D = np.dot((self.particles_matrix - self.mean_particles[:, np.newaxis]),
-                       (gs - mean_gs[:, np.newaxis]).T) / self.number_of_particles
-            res = - np.dot(D, innovations_terms) - np.dot(self.covariance_particles, prior_grads)
-
-        return res
-
     def grad_step(self, *args):
         gradients = np.array([state.get_energy_grad(*args) for state in self.state_list]).T
         return - np.dot(self.covariance_particles, gradients)
-
-    def get_approximation_for_mixed_mode(self, *args):
-        a_params = self.particles_matrix[:self.group_indices]
-        b_params = self.particles_matrix[self.group_indices:]
-        a_params_mean = a_params.mean(axis=1)
-        b_params_mean = b_params.mean(axis=1)
-
-        value_for_gs = np.vstack([np.repeat(a_params_mean[:, np.newaxis], self.number_of_particles, 1), b_params])
-        gs = np.array(
-            [state.get_g_for_value(value_for_g) for state, value_for_g in zip(self.state_list, value_for_gs.T)]).T
-        try:
-            mean_gs = gs.mean(axis=1)
-        except IndexError:
-            mean_gs = np.atleast_1d(gs.mean())
-
-        innovations_terms = np.array([state.get_innovation_term(*args) for state in self.state_list]).T
-        D_ab = np.dot((a_params - a_params_mean[:, np.newaxis]),
-                      (gs - mean_gs[:, np.newaxis]).T) / self.number_of_particles
-        D_bb = np.dot((b_params - b_params_mean[:, np.newaxis]),
-                      (gs - mean_gs[:, np.newaxis]).T) / self.number_of_particles
-        return np.vstack([np.dot(D_ab, innovations_terms), np.dot(D_bb, innovations_terms)])
 
     def mixed_step(self, *args):
         prior_grads = np.array([state.get_prior_energy_grad() for state in self.state_list]).T
