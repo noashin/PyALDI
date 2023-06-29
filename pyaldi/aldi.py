@@ -1,3 +1,9 @@
+"""
+This code implements the algorithm described in the paper here: https://epubs.siam.org/doi/epdf/10.1137/19M1304891
+The algorithm is summarized there in equation 3.10 . In the documentation we refer to the parameters as
+they appear in that equation.
+"""
+
 import pickle
 import time
 
@@ -7,30 +13,17 @@ import numpy as np
 class AldiSampler():
 
     def __init__(self, step_size, number_of_iterations, number_of_particles, state_list, max_step_size=0.1,
-                 output_path='',
-                 save_steps=False, adaptive_step_size=False, constant_covariance=False, covariance_mat=None,
-                 root_covariance_mat=None, start_time=0,
-                 max_max_step_size=None, derivative_free=False, mixed_mode=False, group_indices=0, debugging=False,
-                 gradient_descent=False, frozen_inds=(),
-                 track_energy=False, simple_mode=False):
+                 adaptive_step_size=False,
+                 max_max_step_size=None):
         """
-        :param step_size:
-        :param number_of_iterations:
-        :param number_of_particles:
-        :param state_list:
+        :param step_size: dt
+        :param number_of_iterations: D
+        :param number_of_particles: N
+        :param state_list: a list including the state objects of length N
         :param max_step_size:
-        :param output_path:
-        :param save_steps:
         :param adaptive_step_size:
-        :param constant_covariance:
-        :param covariance_mat:
         :param max_max_step_size:
-        :param derivative_free:
-        :param mixed_mode:
-        :param group_indices: if in mixed mode - the index where the parameters whose gradients need approximations begin.
         """
-
-        self.start_time = start_time
 
         self.step_size = step_size
         self.max_step_size = max_step_size
@@ -38,22 +31,12 @@ class AldiSampler():
             self.max_max_step_size = max_max_step_size
         else:
             self.max_max_step_size = self.max_step_size
+
+        self.adaptive_step_size = adaptive_step_size
+
         self.number_of_iterations = number_of_iterations
         self.number_of_particles = number_of_particles
         self.state_list = state_list
-        self.derivative_free = derivative_free
-        self.mixed_mode = mixed_mode
-        self.group_indices = group_indices
-        self.debugging = debugging
-        self.gradient_descent = gradient_descent
-        self.frozen_inds = frozen_inds
-        self.track_energy = track_energy
-        self.simple_mode = simple_mode
-
-        self.output_path = output_path
-        self.save_steps = save_steps
-        self.adaptive_step_size = adaptive_step_size
-        self.constant_covariance = constant_covariance
 
         try:
             self.number_of_parameters = state_list[0].get_value().shape[0]
@@ -67,14 +50,6 @@ class AldiSampler():
         self.covariance_particles = None
         self.root_covariance_particles = None
         self.particles_matrix = None
-
-        if self.constant_covariance:
-            self.covariance_particles = covariance_mat
-            self.root_covariance_particles = root_covariance_mat
-            if self.covariance_particles.shape[1] == self.root_covariance_particles.shape[1]:
-                self.diag_const_cov = True
-            else:
-                self.diag_const_cov = False
 
         self.step_sizes = []
         self.step_part_one_trace = []
@@ -97,7 +72,8 @@ class AldiSampler():
 
     def set_cov_half(self):
         """
-        This method sets the squared root covariance matrix of the particles
+        This method sets the squared root covariance matrix of the particles.
+        See equation 3.5 in the paper.
         :return:
         """
 
@@ -118,7 +94,6 @@ class AldiSampler():
         aldi step for one particle.
         :return:
         """
-        # breakpoint()
         gradients = np.array([state.get_energy_grad(*args) for state in self.state_list])
         max_value = np.max(np.abs(gradients))
         self.step_size = min(0.01 / max_value, self.max_step_size)
